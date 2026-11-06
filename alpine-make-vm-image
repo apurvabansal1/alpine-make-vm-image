@@ -31,10 +31,12 @@
 #   -a --arch ARCH                        Target CPU architecture. If it doesn't match the host's
 #                                         architecture, you must register an interpreter (emulator)
 #                                         for the target architecture in binfmt, e.g. qemu userspace
-#                                         emulator. Options: x86_64, aarch64 and s390x (Alpine v3.19+ / edge).
+#                                         emulator. Options: x86_64, aarch64, ppc64le and s390x (Alpine v3.19+ / edge).
 #
-#   -B --boot-mode BOOT_MODE              Either "BIOS" (default on x86/x86_64) or "IPL" (default on s390x) or "UEFI" (default
-#                                         on others). "BIOS" is supported only on x86/x86_64. "IPL" is supported only on s390x. 
+#   -B --boot-mode BOOT_MODE              Either "BIOS" (default on x86/x86_64) or "IPL" (default on s390x) 
+#                                         or "PREP" (default on ppc64le) or "UEFI" (default on others).
+#                                         "BIOS" is supported only on x86/x86_64. "IPL" is supported only on s390x. 
+#                                         "PREP" is supported only on ppc64le.
 #
 #   -b --branch ALPINE_BRANCH             Alpine branch to install; used only when
 #                                         --repositories-file is not specified. Default is
@@ -120,7 +122,7 @@ readonly VIRTUAL_PKG=".make-$PROGNAME"
 # An opaque string used to detect changes in resolv.conf.
 readonly RESOLVCONF_MARK="### created by $PROGNAME ###"
 
-# Alpine APK keys for verification of packages for x86_64, aarch64 and s390x.
+# Alpine APK keys for verification of packages for x86_64, aarch64, ppc64le and s390x.
 readonly ALPINE_KEYS='
 4a6a0840:MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA1yHJxQgsHQREclQu4Ohe\nqxTxd1tHcNnvnQTu/UrTky8wWvgXT+jpveroeWWnzmsYlDI93eLI2ORakxb3gA2O\nQ0Ry4ws8vhaxLQGC74uQR5+/yYrLuTKydFzuPaS1dK19qJPXB8GMdmFOijnXX4SA\njixuHLe1WW7kZVtjL7nufvpXkWBGjsfrvskdNA/5MfxAeBbqPgaq0QMEfxMAn6/R\nL5kNepi/Vr4S39Xvf2DzWkTLEK8pcnjNkt9/aafhWqFVW7m3HCAII6h/qlQNQKSo\nGuH34Q8GsFG30izUENV9avY7hSLq7nggsvknlNBZtFUcmGoQrtx3FmyYsIC8/R+B\nywIDAQAB
 5261cecb:MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAwlzMkl7b5PBdfMzGdCT0\ncGloRr5xGgVmsdq5EtJvFkFAiN8Ac9MCFy/vAFmS8/7ZaGOXoCDWbYVLTLOO2qtX\nyHRl+7fJVh2N6qrDDFPmdgCi8NaE+3rITWXGrrQ1spJ0B6HIzTDNEjRKnD4xyg4j\ng01FMcJTU6E+V2JBY45CKN9dWr1JDM/nei/Pf0byBJlMp/mSSfjodykmz4Oe13xB\nCa1WTwgFykKYthoLGYrmo+LKIGpMoeEbY1kuUe04UiDe47l6Oggwnl+8XD1MeRWY\nsWgj8sF4dTcSfCMavK4zHRFFQbGp/YFJ/Ww6U9lA3Vq0wyEI6MCMQnoSMFwrbgZw\nwwIDAQAB
@@ -129,6 +131,7 @@ readonly ALPINE_KEYS='
 616ae350:MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAyduVzi1mWm+lYo2Tqt/0\nXkCIWrDNP1QBMVPrE0/ZlU2bCGSoo2Z9FHQKz/mTyMRlhNqTfhJ5qU3U9XlyGOPJ\npiM+b91g26pnpXJ2Q2kOypSgOMOPA4cQ42PkHBEqhuzssfj9t7x47ppS94bboh46\nxLSDRff/NAbtwTpvhStV3URYkxFG++cKGGa5MPXBrxIp+iZf9GnuxVdST5PGiVGP\nODL/b69sPJQNbJHVquqUTOh5Ry8uuD2WZuXfKf7/C0jC/ie9m2+0CttNu9tMciGM\nEyKG1/Xhk5iIWO43m4SrrT2WkFlcZ1z2JSf9Pjm4C2+HovYpihwwdM/OdP8Xmsnr\nDzVB4YvQiW+IHBjStHVuyiZWc+JsgEPJzisNY0Wyc/kNyNtqVKpX6dRhMLanLmy+\nf53cCSI05KPQAcGj6tdL+D60uKDkt+FsDa0BTAobZ31OsFVid0vCXtsbplNhW1IF\nHwsGXBTVcfXg44RLyL8Lk/2dQxDHNHzAUslJXzPxaHBLmt++2COa2EI1iWlvtznk\nOk9WP8SOAIj+xdqoiHcC4j72BOVVgiITIJNHrbppZCq6qPR+fgXmXa+sDcGh30m6\n9Wpbr28kLMSHiENCWTdsFij+NQTd5S47H7XTROHnalYDuF1RpS+DpQidT5tUimaT\nJZDr++FjKrnnijbyNF8b98UCAwEAAQ==
 58e4f17d:MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvBxJN9ErBgdRcPr5g4hVqyUSGZEKuvQliq2Z9SRHLh2J43+EdB6A+yzVvLnzcHVpBJ+BZ9RV30EM9guck9shr+bryZcRHyjG2wiIEoduxF2a8KeWeQH7QlpwGhuobo1+gA8L0AGImiA6UP3LOirlI0G2+iaKZowME8/tydww4jx5vG132JCOScMjTalRsYZYJcjFbebQQolpqRaGB4iGWqhytWQGWuKiB1A22wjmIYf3t96l1Mp+FmM2URPxD1gk/BIBnX7ew+2gWppXOK9j1BJpo0/HaX5XoZ/uMqISAAtgHZAqq+g3IUPouxTphgYQRTRYpz2COw3NF43VYQrRbQIDAQAB
 616ac3bc:MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAvaaoSLab+IluixwKV5Od0gib2YurjPatGIbn5Ov2DLUFYiebj2oJINXJSwUOO+4WcuHFEqiL/1rya+k5hLZthnPL1tn6QD4rESznvGSasRCQNT2vS/oyZbTYJRyAtFkEYLlq0t3S3xBxxHWuvIf0qVxVNYpQWyM3N9RIeYBR/euXKJXileSHk/uq1I5wTC0XBIHWcthczGN0m9wBEiWS0m3cnPk4q0Ea8mUJ91Rqob19qETz6VbSPYYpZk3qOycjKosuwcuzoMpwU8KRiMFd5LHtX0Hx85ghGsWDVtS0c0+aJa4lOMGvJCAOvDfqvODv7gKlCXUpgumGpLdTmaZ81RwqspAe3IqBcdKTqRD4m2mSg23nVx2FAY3cjFvZQtfooT7q1ItRV5RgH6FhQSl7+6YIMJ1Bf8AAlLdRLpg+doOUGcEn+pkDiHFgI8ylH1LKyFKw+eXaAml/7DaWZk1ddqggwhXOhc/UUZFQuQQ8A8zpA13PcbC05XxN2hyP93tCEtyynMLVPtrRwDnHxFKaqKzs3rMDXPSXRn3ZZTdKH3069ApkEjQdpcwUh+EmJ1Ve/5cdtzT6kKWCjKBFZP/s91MlRrX2BTRdHaU5QJkUheUtakwxuHrdah2F94lRmsnQlpPr2YseJu6sIE+Dnx4MCfhdVbQL2w54R645nlnohu8CAwEAAQ==
+58cbb476:MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAoSPnuAGKtRIS5fEgYPXD\n8pSGvKAmIv3A08LBViDUe+YwhilSHbYXUEAcSH1KZvOo1WT1x2FNEPBEFEFU1Eyc\n+qGzbA03UFgBNvArurHQ5Z/GngGqE7IarSQFSoqewYRtFSfp+TL9CUNBvM0rT7vz\n2eMu3/wWG+CBmb92lkmyWwC1WSWFKO3x8w+Br2IFWvAZqHRt8oiG5QtYvcZL6jym\nY8T6sgdDlj+Y+wWaLHs9Fc+7vBuyK9C4O1ORdMPW15qVSl4Lc2Wu1QVwRiKnmA+c\nDsH/m7kDNRHM7TjWnuj+nrBOKAHzYquiu5iB3Qmx+0gwnrSVf27Arc3ozUmmJbLj\nzQIDAQAB
 '
 
 readonly HOST_ARCH="$(uname -m)"
@@ -137,6 +140,7 @@ readonly HOST_ARCH="$(uname -m)"
 case "$HOST_ARCH" in
 	aarch64) : ${APK_TOOLS_SHA256:="e471d35aa221d031abe9b6288aede12a8e9f1a398954e5a2e1d1bce1727b4ef4"};;
 	x86_64) : ${APK_TOOLS_SHA256:="34bb1a96f0258982377a289392d4ea9f3f4b767a4bb5806b1b87179b79ad8a1c"};;
+    ppc64le) : ${APK_TOOLS_SHA256:="fb576913fe730e039c9ca55f78c0686053aa2c3d9c4c593822a6e70ae36f0472"};;
 	s390x)  : ${APK_TOOLS_SHA256:="6880a5f5e7f62e1f4c47ad3a75d699f9b1f99f3f20f9f8be01637bef1012b8e7"};;
 	
 esac
@@ -218,7 +222,8 @@ blk_uuid() {
 	blkid "$dev" | sed -En 's/.*\bUUID="([^"]+)".*/\1/p'
 }
 
-# Creates GPT parition table on the device $1 for boot mode $2 (BIOS or UEFI).
+# Creates parition table on the device $1 for boot mode $2 (BIOS or UEFI or PREP).
+# PREP uses an MBR (dos) table with an 8M PReP boot partition (type 41) followed by the root partition; this is the layout IBM Power # firmware (SLOF) boots.
 create_gpt() {
 	local dev="$1"
 	local mode="$2"
@@ -233,6 +238,11 @@ create_gpt() {
 			'name=efi,type=U,size=128M,bootable' \
 			'name=system,type=L' \
 			| sfdisk "$disk_dev" ;;
+        PREP) printf '%s\n' \
+			'label: dos' \
+			'size=8M,type=41,bootable' \
+			'type=83' \
+ 			| sfdisk "$dev" ;;
 		*) die "Invalid mode: $mode" ;;
 	esac
 }
@@ -432,7 +442,7 @@ while [ $# -gt 0 ]; do
 done
 
 : ${ALPINE_BRANCH:="latest-stable"}
-: ${ALPINE_MIRROR:="http://dl-cdn.alpinelinux.org/alpine"}
+: ${ALPINE_MIRROR:="https://dl-cdn.alpinelinux.org/alpine"}
 : ${ARCH:=}
 : ${CLEANUP:="yes"}
 : ${FS_SKEL_CHOWN:=}
@@ -469,15 +479,20 @@ case "${ARCH:-"$HOST_ARCH"}" in
 		: ${BOOT_MODE:="IPL"}
         [ "$BOOT_MODE" != 'IPL' ] && die 's390x supports IPL boot mode only'
 		;;
+    ppc64le)
+		: ${BOOT_MODE:="PREP"}
+		[ "$BOOT_MODE" != 'PREP' ] && die 'ppc64le supports PREP boot mode only'
+		;;
 	*)
 		: ${BOOT_MODE:="UEFI"}
 		[ "$BOOT_MODE" = 'BIOS' ] && die 'BIOS boot mode is supported only on x86/x86_64'
         [ "$BOOT_MODE" = 'IPL' ] && die 'IPL boot mode is supported only on s390x'
+        [ "$BOOT_MODE" = 'PREP' ] && die 'PREP boot mode is supported only on ppc64le'
 		;;
 esac
 
 case "$BOOT_MODE" in
-	BIOS | UEFI | IPL) ;;
+	BIOS | UEFI | IPL | PREP) ;;
 	*) die "Invalid boot-mode: $BOOT_MODE";;
 esac
 
@@ -491,6 +506,8 @@ SERIAL_PORT=
 if [ "$SERIAL_CONSOLE" != 'no' ]; then 
    if [ "$ARCH" = 's390x' ]; then
        SERIAL_PORT='ttysclp0'
+   elif [ "$ARCH" = 'ppc64le' ]; then
+       SERIAL_PORT='hvc0'
    else 
        SERIAL_PORT='ttyS0'
    fi
@@ -547,13 +564,17 @@ else
 fi
 
 #-----------------------------------------------------------------------
-if [ "$PARTITION" = yes ] || [ "$BOOT_MODE" = 'UEFI' ]; then
-	einfo 'Creating GPT partition table'
+if [ "$PARTITION" = yes ] || [ "$BOOT_MODE" = 'UEFI' ] || [ "$BOOT_MODE" = 'PREP' ]; then
+	einfo 'Creating partition table'
 
 	create_gpt "$disk_dev" "$BOOT_MODE"
 
 	if [ "$BOOT_MODE" = 'BIOS' ]; then
 		root_dev="${disk_dev}p1"
+    elif [ "$BOOT_MODE" = 'PREP' ]; then
+		prep_dev="${disk_dev}p1"
+ 		root_dev="${disk_dev}p2"
+		settle_dev_node "$prep_dev" || die "system didn't create $prep_dev node"
 	else
 		esp_dev="${disk_dev}p1"
 		root_dev="${disk_dev}p2"
@@ -693,6 +714,40 @@ EOF
     chroot "$mount_dir" /sbin/zipl || die "zIPL failed"
 fi
 
+if [ "$BOOT_MODE" = 'PREP' ]; then
+	einfo 'Setting up GRUB (powerpc-ieee1275) bootloader'
+
+	_apk add --root . --no-scripts grub grub-ieee1275
+
+	# Same kernel naming as the other boot modes: /boot/vmlinuz-$KERNEL_FLAVOR.
+	mkdir -p boot/grub
+	# Modules loaded on demand from $prefix (what grub-install would copy).
+	cp -r usr/lib/grub/powerpc-ieee1275 boot/grub/
+	cat > boot/grub/grub.cfg <<-EOF
+		set default=0
+		set timeout=1
+		menuentry 'Alpine Linux' {
+		    search --no-floppy --fs-uuid --set=root $root_uuid
+		    linux /boot/vmlinuz-$KERNEL_FLAVOR root=UUID=$root_uuid rootfstype=$ROOTFS modules=$(echo $INITFS_FEATURES | tr ' ' ',') rw${SERIAL_PORT:+ console=$SERIAL_PORT}
+		    initrd /boot/initramfs-$KERNEL_FLAVOR
+		}
+	EOF
+
+	# Build the GRUB core image with a fixed prefix (no device probing, which
+	# is fragile in a chroot on NBD/emulation) and write it into the PReP
+	# partition; SLOF loads the ELF from there. The root partition is msdos2.
+	chroot . grub-mkimage \
+		--format=powerpc-ieee1275 \
+		--directory=/usr/lib/grub/powerpc-ieee1275 \
+		--prefix='(,msdos2)/boot/grub' \
+		--output=/tmp/grub-core.elf \
+		part_msdos ext2 normal linux boot configfile search search_fs_uuid echo ls cat \
+		|| die 'grub-mkimage failed'
+	dd if=tmp/grub-core.elf of="$prep_dev" bs=1M conv=notrunc
+	sync
+	rm -f tmp/grub-core.elf
+fi
+
 if [ "$BOOT_MODE" = 'UEFI' ]; then
 	echo "LABEL=EFI	/boot		vfat\
 	rw,relatime,fmask=0133,codepage=437,iocharset=ascii,shortname=mixed,utf8,errors=remount-ro	0 2" \
@@ -726,6 +781,10 @@ mkdir -p etc/network/if-post-down.d
 if [ "$SERIAL_PORT" ]; then
 	echo "$SERIAL_PORT" >> etc/securetty
 	sed -Ei "s|^[# ]*($SERIAL_PORT:.*)|\1|" etc/inittab
+    # The stock inittab has no hvc0 entry (Power hypervisor console).
+	if [ "$SERIAL_PORT" = 'hvc0' ] && ! grep -q '^hvc0:' etc/inittab; then
+		echo 'hvc0::respawn:/sbin/getty -L 115200 hvc0 vt100' >> etc/inittab
+	fi
 fi
 
 #-----------------------------------------------------------------------
